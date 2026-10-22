@@ -19,6 +19,7 @@ export type Accent = {
     held: boolean; // pointer held still: recolor
     dragging: boolean;
     close: boolean; // a close-up view is active: only surfaces you can touch are clickable
+    room: string; // which room the camera is in
   };
 };
 
@@ -28,7 +29,7 @@ export function AccentProvider({ children }: { children: React.ReactNode }) {
   const [value] = useState<Accent>(() => ({
     basic: new THREE.MeshBasicMaterial({ color: "#46e0ff", toneMapped: false }),
     color: new THREE.Color("#46e0ff"),
-    state: { hue: 190, day: false, mood: 0, lampOn: true, lamp: 1, yaw: 0, pitch: 0, held: false, dragging: false, close: false },
+    state: { hue: 190, day: false, mood: 0, lampOn: true, lamp: 1, yaw: 0, pitch: 0, held: false, dragging: false, close: false, room: "studio" },
   }));
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

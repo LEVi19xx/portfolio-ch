@@ -7,10 +7,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { PROJECTS, QUIPS, TIPS } from "@/content/content";
 import { sound } from "@/lib/sound";
+import { busk } from "@/lib/busk";
 import { terminal } from "@/lib/terminal";
 import { useAccent } from "./accent";
 import { Hit, pointerOff, type V3 } from "./Hit";
-import { crowd, findPath, HUBS, type P2 } from "./nav";
+import { roomOf, type RoomId } from "../components/stations";
+import { control, crowd, findPath, hubsOf, pathLength, roomAt, stepTo, W, type P2 } from "./nav";
 import { B } from "./Room";
 import { Phone } from "./Extras";
 import { techLogo } from "./textures";
@@ -287,7 +289,10 @@ function Screen({ active }: { active: boolean }) {
   const accent = useAccent();
   const [screen] = useState(makeScreen);
   const downAt = useRef<[number, number] | null>(null);
-  useFrame(({ clock }) => screen.draw(clock.elapsedTime, accent.state.hue, active));
+  useFrame(({ clock }) => {
+    if (accent.state.room !== "studio") return;
+    screen.draw(clock.elapsedTime, accent.state.hue, active);
+  });
   return (
     <mesh
       position={[0, 0.62, -0.0035]}
@@ -499,7 +504,7 @@ export function Uplink({ onToggleMusic, active }: { onToggleMusic: () => void; a
         <Html position={[0, 0.66, 0]} center zIndexRange={[4, 0]} style={{ pointerEvents: "none" }}>
           <div
             ref={label}
-            className="whitespace-nowrap rounded-full px-3 py-1 font-mono text-[10px] font-semibold tracking-[0.25em] text-white transition-opacity duration-300"
+            className="room-studio whitespace-nowrap rounded-full px-3 py-1 font-mono text-[10px] font-semibold tracking-[0.25em] text-white transition-opacity duration-300"
             style={{ opacity: 0, background: "rgba(8,10,18,0.78)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)" }}
           />
         </Html>
@@ -606,16 +611,33 @@ export function Codex({ active, onSelect }: { active: boolean; onSelect: () => v
 }
 
 /* ─────────── a little character who wanders the room and visits whatever you open ─────────── */
-type Pose = "sit" | "read" | "look" | "dance";
-const SPOTS: ({ p: P2; face: P2; pose: Pose } | null)[] = [
-  null, // home: wander
-  { p: [-1.6, 2.4], face: [-2.7, 0.95], pose: "read" }, // bio: near the book table
-  { p: [2.6, -1.5], face: [0.6, -3.4], pose: "look" }, // ops: off to the side of the pegboard
-  { p: [-1.6, -2.2], face: [-1.7, -3.0], pose: "sit" }, // vault: sitting at the desk, working
-  { p: [1.5, 1.7], face: [0.4, 0.8], pose: "look" }, // codex: by the core
-  { p: [1.2, -1.5], face: [2.2, -3.3], pose: "dance" }, // uplink: dancing to the speaker, away from the phone close-up
+type Pose = "sit" | "read" | "look" | "dance" | "busk";
+type Spot = { p: P2; face: P2; pose: Pose; y?: number };
+const spot = (room: RoomId, at: P2, face: P2, pose: Pose, y?: number): Spot => ({ p: W(room, at), face: W(room, face), pose, y });
+// where she goes for each section (world coordinates). null = an overview: she wanders that room.
+const SPOTS: (Spot | null)[] = [
+  null, // 0 home
+  spot("studio", [-1.6, 2.4], [-2.7, 0.95], "read"), // 1 bio: near the book table
+  spot("studio", [2.6, -1.5], [0.6, -3.4], "look"), // 2 ops: off to the side of the pegboard
+  spot("studio", [-1.6, -2.2], [-1.7, -3.0], "sit"), // 3 vault: sitting at the desk, working
+  spot("studio", [1.5, 1.7], [0.4, 0.8], "look"), // 4 codex: by the core
+  spot("studio", [1.2, -1.5], [2.2, -3.3], "dance"), // 5 uplink: dancing to the speaker
+  null, // 6 lounge
+  spot("lounge", [0.3, 1.9], [0.4, -3.3], "sit"), // 7 life: on the sofa, watching TV
+  null, // 8 gallery
+  spot("gallery", [-1.0, 1.3], [0, -3.4], "look"), // 9 awards: admiring the frames
+  null, // 10 theater
+  spot("theater", [0.85, 2.3], [-0.2, -3.4], "sit", 0.32), // 11 reel: in the back row
+  null, // 12 music
+  spot("music", [1.6, 0.2], [0.4, -2.85], "dance"), // 13 jam: dancing to the keys
+  null, // 14 florist
+  spot("flowers", [1.5, 1.4], [0.3, 0.5], "look"), // 15 bouquet: by the workbench
+  null, // 16 atelier
+  spot("atelier", [-1.5, -0.95], [-1.5, -1.9], "look"), // 17 canvas: standing at the easel
+  spot("atelier", [1.9, -2.2], [1.9, -3.1], "sit"), // 18 letter: at the writing desk
+  spot("music", [0.6, 0.7], [2.2, 2.3], "busk"), // 19 busk: playing guitar on the rug
+  spot("gallery", [1.4, -1.9], [2.6, -1.9], "look"), // 20 booth: in front of the photobooth
 ];
-
 const SEAT = SPOTS[3]!;
 const SKIN = "#f1c9a5";
 const HOODIE_DARK = "#14151b";
@@ -764,18 +786,56 @@ function StraightHair() {
   );
 }
 
-export function Walker({ onSelect, section }: { onSelect: () => void; section: number }) {
+// what E does next to each spot while you drive her
+const SPOT_LABEL: Record<number, string> = {
+  1: "READ THE BOOK",
+  2: "LOOK AT THE BADGES",
+  3: "SIT AT THE DESK",
+  4: "INSPECT THE CORE",
+  5: "DANCE TO THE SPEAKER",
+  7: "SIT AND WATCH TV",
+  9: "ADMIRE THE FRAMES",
+  11: "TAKE A SEAT",
+  13: "SIT AT THE KEYS",
+  15: "WORK ON A BOUQUET",
+  17: "PAINT AT THE EASEL",
+  18: "SIT AND WRITE A LETTER",
+  19: "BUSK ON THE RUG",
+  20: "STEP INTO THE BOOTH",
+};
+const SEAT_ALWAYS_STAND = ["Space", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+const MOVE_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "ShiftLeft", "ShiftRight", ...SEAT_ALWAYS_STAND];
+
+export function Walker({
+  onSelect,
+  section,
+  onSit,
+  onStand,
+}: {
+  onSelect: () => void;
+  section: number;
+  onSit: (section: number) => void;
+  onStand: () => void;
+}) {
+  const cb = useRef({ onSit, onStand });
+  useEffect(() => {
+    cb.current = { onSit, onStand };
+  });
+  const hint = useRef("");
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
   const book = useRef<THREE.Mesh>(null);
+  const guitar = useRef<THREE.Group>(null);
   const legs = useRef<(THREE.Group | null)[]>([]);
   const arms = useRef<(THREE.Group | null)[]>([]);
   const nav = useRef({
-    x: 1.2,
-    z: 0.6,
+    x: W("studio", [1.2, 0.6])[0],
+    z: W("studio", [1.2, 0.6])[1],
     yaw: 0,
     path: [] as P2[],
+    room: "studio" as RoomId,
+    rate: 1.15,
     idleUntil: 2,
     phase: 0,
     wave: 0,
@@ -784,6 +844,7 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
     section: 0,
     seat: false,
     trips: 0,
+    pending: -1, // a spot she is walking to because you pressed E
   });
   const [msg, setMsg] = useState("");
   const [show, setShow] = useState(false);
@@ -803,17 +864,177 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
     const n = nav.current;
     n.section = section;
     n.seat = false;
+    // driving her yourself: the section only changes the camera, she stays where you put her
+    if (control.active) return;
+    n.room = roomOf(section);
     const spot = SPOTS[section];
-    n.path = spot ? findPath([n.x, n.z], spot.p) : [];
+    // an object's spot, or (for a room overview) the first place to wander to in that room
+    n.path = findPath([n.x, n.z], spot ? spot.p : hubsOf(n.room)[0]);
     const id = setTimeout(() => say(TIPS[section] ?? TIPS[0], 4800), 1600);
     return () => clearTimeout(id);
   }, [section, say]);
 
   useEffect(() => {
-    const onPulse = () => (nav.current.jump = 1);
+    const n = nav.current;
+    const setHint = (h: string) => {
+      if (h === hint.current) return;
+      hint.current = h;
+      window.dispatchEvent(new CustomEvent("walk-hint", { detail: h }));
+    };
+    const nearest = () => {
+      let best = -1;
+      let bd = 1.7;
+      SPOTS.forEach((s, i) => {
+        if (!s || SPOT_LABEL[i] === undefined) return;
+        const d = Math.hypot(s.p[0] - n.x, s.p[1] - n.z);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      });
+      return best;
+    };
+    const stand = () => {
+      if (control.seat < 0) return;
+      control.seat = -1;
+      control.yaw = n.yaw;
+      setHint("");
+      cb.current.onStand();
+    };
+    const onPulse = () => (n.jump = 1);
+    const onStart = () => {
+      n.path = [];
+      n.seat = false;
+      n.pending = -1;
+      control.yaw = n.yaw;
+      control.pitch = 0;
+      control.seat = -1;
+      control.room = roomAt([n.x, n.z]) ?? n.room;
+    };
+    // walk to a point chosen on the map
+    const onGoto = (e: Event) => {
+      const to = (e as CustomEvent<P2>).detail;
+      if (control.seat >= 0) stand();
+      n.pending = -1;
+      n.path = findPath([n.x, n.z], to);
+    };
+    // go to a section (or a room): walk to its spot and sit, or to the room's first stop
+    const onWalkTo = (e: Event) => {
+      const i = (e as CustomEvent<number>).detail;
+      if (control.seat >= 0) stand();
+      const sp = SPOTS[i];
+      if (sp) {
+        n.pending = i;
+        n.path = findPath([n.x, n.z], sp.p);
+      } else {
+        n.pending = -1;
+        n.path = findPath([n.x, n.z], hubsOf(roomOf(i))[0]);
+      }
+    };
+    // lost? put the camera back behind her, level, at the default distance
+    const onReset = () => {
+      control.pitch = 0;
+      control.zoom = 2.6;
+      control.fp = false;
+      control.map = false;
+      control.yaw = n.yaw;
+    };
+    const onEnd = () => {
+      n.path = [];
+      n.seat = false;
+      n.pending = -1;
+      n.idleUntil = 0;
+      control.seat = -1;
+      setHint("");
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!control.active || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement | null)?.closest?.("input,textarea")) return;
+      if (MOVE_KEYS.includes(e.code) || ["KeyE", "KeyV", "KeyM", "KeyR", "Equal", "Minus"].includes(e.code)) {
+        // while she sits at the keys, letters belong to the piano; only these get you up
+        const letterMove = ["KeyW", "KeyA", "KeyS", "KeyD"].includes(e.code);
+        if (control.seat >= 0) {
+          const stands = SEAT_ALWAYS_STAND.includes(e.code) || (letterMove && control.seat !== 13);
+          if (e.code !== "Escape") if (stands || ["Space"].includes(e.code)) e.preventDefault();
+          if (stands && e.code !== "Escape") stand();
+          if (control.seat >= 0) return;
+        }
+        if (e.code === "Space" || e.code.startsWith("Arrow")) e.preventDefault();
+        if (e.code === "KeyE" && !e.repeat) {
+          if (n.pending < 0) {
+            const i = nearest();
+            const s = SPOTS[i];
+            if (s) {
+              n.pending = i;
+              n.path = findPath([n.x, n.z], s.p);
+              sound.click();
+            }
+          }
+          return;
+        }
+        if ((e.code === "Equal" || e.code === "Minus") && control.seat < 0) zoomBy(e.code === "Minus" ? 1 : -1);
+        else if (e.code === "KeyV" && !e.repeat) control.fp = !control.fp;
+        else if (e.code === "KeyM" && !e.repeat) control.map = !control.map;
+        else if (e.code === "KeyR" && !e.repeat) onReset();
+        else control.keys.add(e.code);
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => control.keys.delete(e.code);
+    // zoom the camera: pulling back from first person puts it behind her, pushing all the way in puts it in her head
+    const zoomBy = (dir: number) => {
+      if (control.map) return;
+      if (control.fp) {
+        if (dir > 0) {
+          control.fp = false;
+          control.zoom = 1.6;
+        }
+        return;
+      }
+      control.zoom = Math.max(1.2, Math.min(11, control.zoom * (dir > 0 ? 1.15 : 0.87)));
+      if (dir < 0 && control.zoom <= 1.2) control.fp = true;
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!control.active || control.seat >= 0) return;
+      if ((e.target as HTMLElement | null)?.closest?.("[data-ui],[data-scroll]")) return;
+      zoomBy(e.deltaY > 0 ? 1 : -1);
+    };
+    const onZoom = (e: Event) => zoomBy((e as CustomEvent<number>).detail);
+    const onBlur = () => control.keys.clear();
+    const onFrameHint = window.setInterval(() => {
+      if (!control.active) return;
+      if (control.seat >= 0) setHint("SPACE · STAND UP");
+      else if (n.pending >= 0) setHint("");
+      else {
+        const i = nearest();
+        setHint(i >= 0 ? "E · " + SPOT_LABEL[i] : "");
+      }
+    }, 120);
     window.addEventListener("field-pulse", onPulse);
+    window.addEventListener("walk-start", onStart);
+    window.addEventListener("walk-end", onEnd);
+    window.addEventListener("walk-stand", stand);
+    window.addEventListener("walk-goto", onGoto);
+    window.addEventListener("walk-to", onWalkTo);
+    window.addEventListener("walk-reset", onReset);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("walk-zoom", onZoom);
     return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("walk-zoom", onZoom);
       window.removeEventListener("field-pulse", onPulse);
+      window.removeEventListener("walk-start", onStart);
+      window.removeEventListener("walk-end", onEnd);
+      window.removeEventListener("walk-stand", stand);
+      window.removeEventListener("walk-goto", onGoto);
+      window.removeEventListener("walk-to", onWalkTo);
+      window.removeEventListener("walk-reset", onReset);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+      window.clearInterval(onFrameHint);
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
@@ -822,27 +1043,68 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
     const n = nav.current;
     const t = clock.elapsedTime;
     prints.draw(accent.state.hue);
-    const spot = SPOTS[n.section];
+    const driving = control.active;
+    const spot = driving ? (control.seat >= 0 ? SPOTS[control.seat] : null) : SPOTS[n.section];
     n.jump = Math.max(0, n.jump - dt * 2.2);
     n.wave = Math.max(0, n.wave - dt);
 
+    let moving = false;
+    let targetYaw = n.yaw;
+    if (driving) {
+      const k = control.keys;
+      if (control.seat < 0) {
+        control.yaw += ((k.has("ArrowLeft") ? 1 : 0) - (k.has("ArrowRight") ? 1 : 0)) * 2.2 * dt;
+        const f = (k.has("KeyW") || k.has("ArrowUp") ? 1 : 0) - (k.has("KeyS") || k.has("ArrowDown") ? 1 : 0) - control.joy.y;
+        const sl = (k.has("KeyA") ? 1 : 0) - (k.has("KeyD") ? 1 : 0) - control.joy.x;
+        const len = Math.hypot(f, sl);
+        if (len > 0.05) {
+          // pressing a key cancels a walk to a seat, or a trip from the map
+          if (n.pending >= 0 || n.path.length > 0) {
+            n.pending = -1;
+            n.path = [];
+          }
+          if (n.path.length === 0) {
+            const sy = Math.sin(control.yaw);
+            const cy = Math.cos(control.yaw);
+            const speed = (k.has("ShiftLeft") || k.has("ShiftRight") ? 4.2 : 2.4) * Math.min(1, len);
+            const [nx, nz] = stepTo(
+              n.x,
+              n.z,
+              ((sy * f + cy * sl) / len) * speed * dt,
+              ((cy * f - sy * sl) / len) * speed * dt,
+            );
+            moving = Math.hypot(nx - n.x, nz - n.z) > speed * dt * 0.2;
+            n.x = nx;
+            n.z = nz;
+            n.rate = 1.15 + (speed - 2.4) * 0.9;
+          }
+        }
+      }
+      if (n.pending >= 0 || n.path.length > 0) control.yaw = n.yaw;
+      const r = roomAt([n.x, n.z]);
+      if (r && r !== control.room) {
+        control.room = r;
+        document.documentElement.dataset.room = r;
+        accent.state.room = r;
+        window.dispatchEvent(new CustomEvent("walk-room", { detail: r }));
+      }
+    }
+
     // wander at home when there is nothing queued
-    if (!spot && n.path.length === 0 && t > n.idleUntil) {
+    if (!driving && !spot && n.path.length === 0 && t > n.idleUntil) {
       n.seat = false;
       n.trips += 1;
-      if (n.trips % 2 === 0) {
+      if (n.room === "studio" && n.trips % 2 === 0) {
         // go and work at the desk for a while
         n.path = findPath([n.x, n.z], SEAT.p);
         n.seat = true;
       } else {
-        const choices = HUBS.filter((h) => Math.hypot(h[0] - n.x, h[1] - n.z) > 1.2);
+        const choices = hubsOf(n.room).filter((h) => Math.hypot(h[0] - n.x, h[1] - n.z) > 1.2);
         const pick = choices[Math.floor(Math.random() * choices.length)];
         if (pick) n.path = findPath([n.x, n.z], pick);
       }
     }
 
-    let moving = false;
-    let targetYaw = n.yaw;
     if (n.path.length > 0) {
       const [tx, tz] = n.path[0];
       const dx = tx - n.x;
@@ -850,9 +1112,20 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
       const d = Math.hypot(dx, dz);
       if (d < 0.06) {
         n.path.shift();
-        if (n.path.length === 0) n.idleUntil = t + 1.6 + Math.random() * 2.6 + (n.seat ? 16 + Math.random() * 12 : 0);
+        if (n.path.length === 0) {
+          n.idleUntil = t + 1.6 + Math.random() * 2.6 + (n.seat ? 16 + Math.random() * 12 : 0);
+          if (driving && n.pending >= 0) {
+            // she got to the spot you asked for: sit, read, dance...
+            control.seat = n.pending;
+            n.pending = -1;
+            cb.current.onSit(control.seat);
+          }
+        }
       } else {
-        const sp = 1.15 * dt;
+        // across the house she jogs; inside a room she strolls
+        const rate = driving ? 3 : Math.max(1.15, Math.min(5, pathLength([n.x, n.z], n.path) / 7));
+        n.rate = rate;
+        const sp = rate * dt;
         n.x += (dx / d) * Math.min(sp, d);
         n.z += (dz / d) * Math.min(sp, d);
         targetYaw = Math.atan2(dx, dz);
@@ -860,6 +1133,8 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
       }
     } else if (spot) {
       targetYaw = Math.atan2(spot.face[0] - n.x, spot.face[1] - n.z);
+    } else if (driving) {
+      targetYaw = control.yaw;
     } else if (n.seat) {
       targetYaw = Math.atan2(SEAT.face[0] - n.x, SEAT.face[1] - n.z);
     }
@@ -875,7 +1150,7 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
           ? "sit"
           : "idle";
     n.sit += ((pose === "sit" ? 1 : 0) - n.sit) * Math.min(1, dt * 6);
-    if (moving) n.phase += dt * 7.5;
+    if (moving) n.phase += dt * (7.5 + (n.rate - 1.15) * 2.2);
 
     const music = sound.isMusicOn();
     const [lL, lR] = legs.current;
@@ -899,6 +1174,11 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
     } else if (pose === "sit") {
       lerpTo(aL, -1.0 + type, -0.15);
       lerpTo(aR, -1.0 - type, 0.15);
+    } else if (pose === "busk") {
+      // left hand on the neck, right hand strumming
+      const strum = busk.get().playing ? Math.sin(t * 14) * 0.3 : Math.sin(t * 2) * 0.06;
+      lerpTo(aL, -1.25, -0.3);
+      lerpTo(aR, -0.95 + strum, 0.28);
     } else if (pose === "read") {
       lerpTo(aL, -1.15, -0.1);
       lerpTo(aR, -1.15, 0.1);
@@ -914,6 +1194,7 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
       lerpTo(aR, swing * 0.6, 0.08);
     }
     if (book.current) book.current.visible = pose === "read" && !moving;
+    if (guitar.current) guitar.current.visible = pose === "busk";
 
     const dancing = pose === "dance" && music;
     const bob = moving
@@ -932,10 +1213,12 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
     crowd.walker.z = n.z;
     crowd.walker.still = moving ? 0 : crowd.walker.still + dt;
     if (root.current) {
+      // in first person you are her eyes, so there is no body to see
+      root.current.visible = !(driving && control.fp && control.seat < 0 && !control.map);
       // seated, she scoots a little toward the desk so her hands reach the keyboard
       root.current.position.set(
         n.x + Math.sin(n.yaw) * 0.12 * n.sit,
-        n.sit * 0.14 + Math.sin(n.jump * Math.PI) * 0.35,
+        n.sit * (0.14 + (spot?.y ?? 0)) + Math.sin(n.jump * Math.PI) * 0.35,
         n.z + Math.cos(n.yaw) * 0.12 * n.sit,
       );
       root.current.rotation.y = n.yaw;
@@ -1005,6 +1288,24 @@ export function Walker({ onSelect, section }: { onSelect: () => void; section: n
             </mesh>
           </group>
         ))}
+        <group ref={guitar} position={[-0.02, 0.5, 0.17]} rotation={[0.15, 0, 0.7]} visible={false}>
+          <mesh scale={[1, 1.15, 0.32]} castShadow>
+            <sphereGeometry args={[0.1, 16, 12]} />
+            <meshStandardMaterial color="#c46b2a" roughness={0.4} />
+          </mesh>
+          <mesh position={[0, 0, 0.034]}>
+            <circleGeometry args={[0.03, 16]} />
+            <meshBasicMaterial color="#1a0f08" />
+          </mesh>
+          <mesh position={[0, 0.2, 0]}>
+            <boxGeometry args={[0.035, 0.3, 0.02]} />
+            <meshStandardMaterial color="#5a3a22" roughness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.38, 0]}>
+            <boxGeometry args={[0.05, 0.07, 0.02]} />
+            <meshStandardMaterial color="#3a2616" roughness={0.6} />
+          </mesh>
+        </group>
         <mesh ref={book} position={[0, 0.58, 0.2]} rotation={[-0.5, 0, 0]} visible={false}>
           <boxGeometry args={[0.16, 0.02, 0.11]} />
           <meshStandardMaterial color="#c46b5a" roughness={0.6} />
@@ -1105,11 +1406,13 @@ function Hotspot({
   active,
   showAll,
   onSelect,
+  roomId,
 }: {
   cfg: HotspotCfg;
   active: boolean;
   showAll: boolean;
   onSelect: (i: number) => void;
+  roomId: string;
 }) {
   const accent = useAccent();
   const g = useRef<THREE.Group>(null);
@@ -1137,7 +1440,7 @@ function Hotspot({
       {/* always mounted; visibility is a CSS fade so drei never has to tear the portal down mid-frame */}
       <Html position={[cfg.pos[0], cfg.pos[1] + 0.3, cfg.pos[2]]} center zIndexRange={[4, 0]} style={{ pointerEvents: "none" }}>
         <div
-          className="whitespace-nowrap rounded-full px-3 py-1 font-mono text-[10px] font-semibold tracking-[0.25em] text-white transition-opacity duration-300"
+          className={"whitespace-nowrap rounded-full px-3 py-1 font-mono text-[10px] font-semibold tracking-[0.25em] text-white transition-opacity duration-300 room-" + roomId}
           style={{
             opacity: !active && (showAll || hover) ? 1 : 0,
             background: "rgba(8,10,18,0.78)",
@@ -1171,14 +1474,20 @@ export const HOTSPOTS: HotspotCfg[] = [
 export function Hotspots({
   section,
   onSelect,
+  list = HOTSPOTS,
+  roomId = "studio",
+  overview = 0,
 }: {
   section: number;
   onSelect: (i: number) => void;
+  list?: HotspotCfg[];
+  roomId?: string;
+  overview?: number;
 }) {
   return (
     <>
-      {HOTSPOTS.map((h) => (
-        <Hotspot key={h.i} cfg={h} active={section === h.i} showAll={section === 0} onSelect={onSelect} />
+      {list.map((h) => (
+        <Hotspot key={h.i} cfg={h} active={section === h.i} showAll={section === overview} onSelect={onSelect} roomId={roomId} />
       ))}
     </>
   );

@@ -37,6 +37,9 @@ export function Hit({
       position={p}
       raycast={function (this: THREE.Mesh, rc, hits) {
         if (off || (accent.state.close && !always)) return;
+        // objects in a room you are not in must not catch clicks
+        if (!this.visible) return;
+        for (let o = this.parent; o; o = o.parent) if (!o.visible) return;
         THREE.Mesh.prototype.raycast.call(this, rc, hits);
       }}
       onPointerDown={(e) => {

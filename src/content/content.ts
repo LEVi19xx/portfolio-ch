@@ -149,6 +149,21 @@ export const HEADLINES = [
   "Selected work.",
   "What I work with.",
   "Let us build something.",
+  "",
+  "What I do after hours.",
+  "",
+  "Worth framing.",
+  "",
+  "Now showing.",
+  "",
+  "Jam session.",
+  "",
+  "Build a bouquet.",
+  "",
+  "Paint something.",
+  "Write a letter.",
+  "Play for tips.",
+  "Say cheese.",
 ];
 
 // What the drone says when you arrive somewhere, and when you poke it.
@@ -159,6 +174,21 @@ export const TIPS = [
   "Everything is on the monitor. Click a project to read it.",
   "These are the tools I reach for.",
   "Tap the phone. And click the speaker to change the music.",
+  "Welcome to the lounge. Grab the remote: the TV knows what I am into.",
+  "Click a topic on the TV.",
+  "Welcome to the gallery. Take your time.",
+  "Click a frame to read it.",
+  "Grab a seat. Tonight's feature: the films I love.",
+  "Click a poster on the screen, then press play.",
+  "Welcome to the music room. Click the keys, or turn the record.",
+  "Play with the mouse, or use your keyboard: Z to M and Q to U.",
+  "Fresh flowers! Click any bunch to start your own bouquet.",
+  "Pick a flower and a color, then build a bouquet.",
+  "The atelier: paint on the easel, or write a letter at the desk.",
+  "Pick a color and paint. Whatever you make shows up on the easel.",
+  "Write whatever you like. It lands on the paper, and you can send it to me.",
+  "Pick a song and play. A crowd gathers and drops tips in the guitar case.",
+  "Pick a frame, turn on the camera and smile. Polaroids and couple strips!",
 ];
 
 export const QUIPS = [
@@ -169,4 +199,102 @@ export const QUIPS = [
   "Hold the mouse still to recolor everything.",
   "The chair spins. You are welcome.",
   "Press / for the command menu.",
+];
+
+// The lounge TV: what you do when the laptop is shut.
+export const INTERESTS = [
+  {
+    name: "MUSIC",
+    blurb: "Placeholder. Say what you listen to, play or make, and why it matters to you.",
+    now: "On repeat: your favorite album",
+    tags: ["LO-FI", "SYNTHWAVE", "JAZZ"],
+  },
+  {
+    name: "GAMING",
+    blurb: "Placeholder. The games you keep coming back to, and what they taught you.",
+    now: "Playing: your current game",
+    tags: ["INDIE", "STRATEGY", "CO-OP"],
+  },
+  {
+    name: "FITNESS",
+    blurb: "Placeholder. How you stay moving: gym, running, sports, anything.",
+    now: "This week: your current goal",
+    tags: ["GYM", "RUNNING"],
+  },
+  {
+    name: "TRAVEL",
+    blurb: "Placeholder. Places you have been, or the next one on the list.",
+    now: "Next stop: your dream destination",
+    tags: ["CITIES", "FOOD", "HIKING"],
+  },
+  {
+    name: "PHOTOGRAPHY",
+    blurb: "Placeholder. What you shoot and what you look for in a frame.",
+    now: "Lately: street and night shots",
+    tags: ["STREET", "NIGHT"],
+  },
+];
+
+// The gallery frames: recognition and certificates.
+export const AWARDS = [
+  {
+    title: "Award Title One",
+    org: "Organization",
+    year: "2026",
+    note: "Placeholder. Say what it was for and why it mattered.",
+  },
+  {
+    title: "Certificate Title Two",
+    org: "Another Organization",
+    year: "2025",
+    note: "Placeholder. A certification, course or recognition you are proud of.",
+  },
+  {
+    title: "Award Title Three",
+    org: "Third Organization",
+    year: "2024",
+    note: "Placeholder. A hackathon, a competition, a client thank-you.",
+  },
+  {
+    title: "Certificate Title Four",
+    org: "Fourth Organization",
+    year: "2023",
+    note: "Placeholder. The one that started it all.",
+  },
+];
+
+export const ROOM_INTROS = {
+  lounge: {
+    title: "THE LOUNGE",
+    tagline: "Where I switch off: music, games and everything in between.",
+  },
+  gallery: {
+    title: "THE GALLERY",
+    tagline: "Recognition, certificates and the moments worth framing.",
+  },
+  theater: {
+    title: "THE THEATER",
+    tagline: "Lights down, popcorn up. A few of the films that shaped how I think.",
+  },
+  music: {
+    title: "THE MUSIC ROOM",
+    tagline: "Hit the keys, spin the record, change the track.",
+  },
+  flowers: {
+    title: "THE FLOWER SHOP",
+    tagline: "Fresh blooms on display. Pick your favorites and build a bouquet of your own.",
+  },
+  atelier: {
+    title: "THE ATELIER",
+    tagline: "A quiet corner with an easel and a writing desk. Paint something, or leave me a letter.",
+  },
+};
+
+// The theater screen: favorites, as a little now-showing list.
+export const MOVIES = [
+  { title: "MOVIE TITLE ONE", year: "2019", genre: "SCI-FI", blurb: "Placeholder. Say why this film stuck with you.", hue: 200 },
+  { title: "MOVIE TITLE TWO", year: "2014", genre: "DRAMA", blurb: "Placeholder. The scene you can quote from memory.", hue: 340 },
+  { title: "MOVIE TITLE THREE", year: "2010", genre: "THRILLER", blurb: "Placeholder. The one you rewatch every year.", hue: 40 },
+  { title: "MOVIE TITLE FOUR", year: "2006", genre: "ANIMATION", blurb: "Placeholder. A comfort movie for any mood.", hue: 150 },
+  { title: "MOVIE TITLE FIVE", year: "2022", genre: "ADVENTURE", blurb: "Placeholder. The latest one you loved.", hue: 270 },
 ];

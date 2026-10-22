@@ -8,7 +8,7 @@ import { EXPERIENCE, PROFILE } from "@/content/content";
 import { sound } from "@/lib/sound";
 import { useAccent } from "./accent";
 import { Hit, pointerOff, type V3 } from "./Hit";
-import { BED_CAT, BED_DOG, crowd, findPath, HUBS, type P2 } from "./nav";
+import { BED_CAT, BED_DOG, BOWL_LOOK, BOWL_STAND, crowd, findPath, hubsOf, ROOM_IDS, roomAt, type P2 } from "./nav";
 import { B, Lit } from "./Room";
 import { badgeDetailTexture, canvasTexture, cardTexture } from "./textures";
 
@@ -211,7 +211,9 @@ function makeBook() {
 export function Book() {
   const accent = useAccent();
   const [book] = useState(makeBook);
-  useFrame(() => book.draw(accent.state.hue));
+  useFrame(() => {
+    if (accent.state.room === "studio") book.draw(accent.state.hue);
+  });
   return (
     <group position={[-2.7, 0, 0.95]} rotation={[0, Math.PI / 4, 0]}>
       {/* little round table */}
@@ -515,7 +517,9 @@ export function Phone({ active }: { active: boolean }) {
   const accent = useAccent();
   const [phone] = useState(makePhone);
   const downAt = useRef<[number, number] | null>(null);
-  useFrame(({ clock }) => phone.draw(clock.elapsedTime, accent.state.hue));
+  useFrame(({ clock }) => {
+    if (accent.state.room === "studio") phone.draw(clock.elapsedTime, accent.state.hue);
+  });
   return (
     <group position={[2.6, 0.8, -2.92]} rotation={[0, 0.5, 0]}>
       <B p={[0, 0.012, -0.075]} s={[0.12, 0.024, 0.1]} c="#14161f" r={0.008} />
@@ -610,8 +614,21 @@ const SPEC = {
   dog: { speed: 1.05, body: "#f6f2ea", belly: "#ffffff", ear: "#c9a074", patch: "#c9a074" },
 } as const;
 
-const BOWL_STAND: P2 = [-2.05, -0.45];
-const BOWL_LOOK: P2 = [-2.35, -0.45];
+
+// where a roaming pet goes next: usually a spot in the room it is in, sometimes any room of the house,
+// and with chance `visit` over to the person
+function roamTarget(n: { x: number; z: number }, visit: number): P2[] {
+  let target: P2 | undefined;
+  if (Math.random() < visit) {
+    target = [crowd.walker.x + (Math.random() - 0.5) * 1.6, crowd.walker.z + (Math.random() - 0.5) * 1.6];
+  } else {
+    const here = roomAt([n.x, n.z]);
+    const room = here && Math.random() < 0.55 ? here : ROOM_IDS[Math.floor(Math.random() * ROOM_IDS.length)];
+    const choices = hubsOf(room).filter((h) => Math.hypot(h[0] - n.x, h[1] - n.z) > 1.0);
+    target = choices[Math.floor(Math.random() * choices.length)];
+  }
+  return target ? findPath([n.x, n.z], target) : [];
+}
 
 export function Pet({ kind, start }: { kind: Kind; start: P2 }) {
   const spec = SPEC[kind];
@@ -654,7 +671,10 @@ export function Pet({ kind, start }: { kind: Kind; start: P2 }) {
     n.jump = Math.max(0, n.jump - dt * 2.4);
 
     // the dog wakes up as soon as the person gets moving again
+    const away = Math.hypot(crowd.walker.x - n.x, crowd.walker.z - n.z);
     if (kind === "dog" && t < n.sleepUntil && crowd.walker.still < 0.4 && t > n.sleepFrom + 3) n.sleepUntil = 0;
+    // the cat only gets up when she is really leaving
+    if (kind === "cat" && t < n.sleepUntil && crowd.walker.still < 0.4 && away > 5 && t > n.sleepFrom + 3) n.sleepUntil = 0;
 
     const sleeping = t < n.sleepUntil;
     const eating = t < n.eatUntil;
@@ -664,40 +684,33 @@ export function Pet({ kind, start }: { kind: Kind; start: P2 }) {
       setStatus(st);
     }
 
+    // free to roam: pets wander the whole house on their own, nap in their bed, eat at the bowl,
+    // and now and then wander over to say hi
     if (!sleeping && !eating && n.path.length === 0) {
+      const home = roomAt([n.x, n.z]) === "studio";
       if (kind === "dog") {
         const still = crowd.walker.still;
-        if (n.task === "none" && still > 7 && t > n.napOkAt) {
+        const withHer = roomAt([crowd.walker.x, crowd.walker.z]) === "studio" && home;
+        if (n.task === "none" && still > 14 && withHer && t > n.napOkAt) {
           n.path = findPath([n.x, n.z], bed);
           n.task = "bed";
         } else if (n.task === "none" && t > n.nextEat) {
           n.path = findPath([n.x, n.z], BOWL_STAND);
           n.task = "bowl";
+        } else if (t > n.idleUntil) {
+          n.path = roamTarget(n, 0.3);
         }
       } else if (t > n.idleUntil) {
         const r = Math.random();
-        if (r < 0.35) {
+        if (home && r < 0.3) {
           n.path = findPath([n.x, n.z], bed);
           n.task = "bed";
-        } else if (r < 0.5 && t > n.nextEat) {
+        } else if (home && r < 0.42 && t > n.nextEat) {
           n.path = findPath([n.x, n.z], BOWL_STAND);
           n.task = "bowl";
         } else {
-          const choices = HUBS.filter((h) => Math.hypot(h[0] - n.x, h[1] - n.z) > 1.0);
-          const pick = choices[Math.floor(Math.random() * choices.length)];
-          if (pick) n.path = findPath([n.x, n.z], pick);
+          n.path = roamTarget(n, 0.12);
         }
-      }
-    }
-    if (kind === "dog" && !sleeping && !eating && n.task === "none") {
-      // follow the person, stopping a little short
-      const wx = crowd.walker.x;
-      const wz = crowd.walker.z;
-      const d = Math.hypot(wx - n.x, wz - n.z);
-      if (t > n.repath && d > 1.5) {
-        const k = 0.95 / (d || 1);
-        n.path = findPath([n.x, n.z], [wx + (n.x - wx) * k, wz + (n.z - wz) * k]);
-        n.repath = t + 0.9;
       }
     }
 
@@ -723,7 +736,8 @@ export function Pet({ kind, start }: { kind: Kind; start: P2 }) {
           } else n.idleUntil = t + 2 + Math.random() * 3;
         }
       } else {
-        const sp = spec.speed * (kind === "dog" && d > 2.5 ? 1.6 : 1) * dt;
+        // a long trip across the house is a trot
+        const sp = spec.speed * (n.path.length > 3 ? 1.5 : 1) * dt;
         n.x += (dx / d) * Math.min(sp, d);
         n.z += (dz / d) * Math.min(sp, d);
         targetYaw = Math.atan2(dx, dz);

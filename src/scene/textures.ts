@@ -16,7 +16,7 @@ export function canvasTexture(
   return tex;
 }
 
-export function plankTexture() {
+export function plankTexture(lift = 0) {
   const tex = canvasTexture(1024, 1024, (c, w, h) => {
     c.fillStyle = "#241d1b";
     c.fillRect(0, 0, w, h);
@@ -26,7 +26,7 @@ export function plankTexture() {
       let x = -((r * 173) % 256);
       while (x < w) {
         const len = 200 + ((r * 97 + x * 31) % 160);
-        const tone = 30 + ((r * 53 + x * 17) % 14);
+        const tone = 30 + lift + ((r * 53 + x * 17) % 14);
         c.fillStyle = `hsl(18 18% ${tone}%)`;
         c.fillRect(x + 1.5, y + 1.5, len - 3, h / rows - 3);
         x += len;

@@ -24,6 +24,32 @@ const ROUTES: Record<string, number> = {
   skills: 4,
   uplink: 5,
   contact: 5,
+  studio: 0,
+  lounge: 6,
+  life: 7,
+  tv: 7,
+  gallery: 8,
+  awards: 9,
+  theater: 10,
+  reel: 11,
+  movies: 11,
+  musicroom: 12,
+  jam: 13,
+  piano: 13,
+  florist: 14,
+  flowers: 14,
+  shop: 14,
+  bouquet: 15,
+  atelier: 16,
+  paint: 17,
+  canvas: 17,
+  letter: 18,
+  write: 18,
+  busk: 19,
+  busking: 19,
+  booth: 20,
+  photobooth: 20,
+  photo: 20,
 };
 
 function print(line: string) {
@@ -54,6 +80,9 @@ export function typeKey(key: string, actions: TerminalActions) {
       terminal.lines.length = 0;
     } else if (cmd === "help") {
       print("  home bio ops vault codex uplink");
+      print("  lounge life gallery awards");
+      print("  theater reel musicroom jam shop bouquet");
+      print("  atelier paint letter busk photobooth");
       print("  day night music clear");
     } else {
       print(`  command not found: ${cmd}`);

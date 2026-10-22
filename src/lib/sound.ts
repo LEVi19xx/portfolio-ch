@@ -180,6 +180,13 @@ export const sound = {
   click() {
     tone(620, 0.09, 0.06, "triangle");
   },
+  // one piano-ish note (the keys in the music room)
+  async note(freq: number) {
+    await sound.enable();
+    tone(freq, 1.1, 0.13, "triangle");
+    tone(freq * 2, 0.6, 0.04, "sine");
+    tone(freq / 2, 0.8, 0.03, "sine");
+  },
   // a tiny meow (rising squeak) or woof (low thump)
   pet(kind: "cat" | "dog") {
     if (kind === "cat") {

@@ -37,3 +37,14 @@ html, body { background: #03040a; }
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
+
+/* labels attached to 3D objects are real DOM; hide the ones that belong to rooms you are not in */
+html:not([data-room="studio"]) .room-studio,
+html:not([data-room="lounge"]) .room-lounge,
+html:not([data-room="gallery"]) .room-gallery,
+html:not([data-room="theater"]) .room-theater,
+html:not([data-room="music"]) .room-music,
+html:not([data-room="flowers"]) .room-flowers,
+html:not([data-room="atelier"]) .room-atelier {
+  display: none !important;
+}

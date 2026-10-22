@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
+  AWARDS,
   EXPERIENCE,
   HEADLINES,
+  INTERESTS,
+  MOVIES,
   PROFILE,
   PROJECTS,
   SKILLS,
@@ -464,6 +467,79 @@ export function UplinkSheet() {
           </a>
         ))}
       </div>
+    </Sheet>
+  );
+}
+
+/* ───────── room intros and the (hidden) text versions of the lounge and gallery ───────── */
+export function RoomIntro({
+  title,
+  tagline,
+  actions,
+}: {
+  title: string;
+  tagline: string;
+  actions: { label: string; run: () => void; primary?: boolean }[];
+}) {
+  return (
+    <div className="flex flex-col items-start text-left font-mono">
+      <p className="text-[11px] tracking-[0.35em]" style={{ color: accent(70, 0.8) }}>
+        <span className="mr-3 inline-block h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: accent(65) }} />
+        YOU ARE IN A NEW ROOM
+      </p>
+      <h1 className="mt-4 font-sans text-5xl font-semibold leading-none tracking-tight text-white sm:text-7xl">
+        {title}
+      </h1>
+      <p className="mt-5 max-w-md text-sm leading-7 text-slate-300">{tagline}</p>
+      <div className="mt-8 flex flex-wrap gap-3">
+        {actions.map((a) => (
+          <Cta key={a.label} primary={a.primary} onClick={a.run}>
+            {a.label}
+          </Cta>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function LifeSheet() {
+  return (
+    <Sheet index={7} title="LIFE // AFTER HOURS">
+      <ul className="max-w-xl space-y-4 text-sm text-slate-300">
+        {INTERESTS.map((i) => (
+          <li key={i.name}>
+            <strong className="text-white">{i.name}</strong> — {i.blurb} {i.now}
+          </li>
+        ))}
+      </ul>
+    </Sheet>
+  );
+}
+
+export function AwardsSheet() {
+  return (
+    <Sheet index={9} title="AWARDS // GALLERY">
+      <ul className="max-w-xl space-y-4 text-sm text-slate-300">
+        {AWARDS.map((a) => (
+          <li key={a.title}>
+            <strong className="text-white">{a.title}</strong> — {a.org}, {a.year}. {a.note}
+          </li>
+        ))}
+      </ul>
+    </Sheet>
+  );
+}
+
+export function MoviesSheet() {
+  return (
+    <Sheet index={11} title="REEL // THEATER">
+      <ul className="max-w-xl space-y-4 text-sm text-slate-300">
+        {MOVIES.map((m) => (
+          <li key={m.title}>
+            <strong className="text-white">{m.title}</strong> — {m.genre}, {m.year}. {m.blurb}
+          </li>
+        ))}
+      </ul>
     </Sheet>
   );
 }

@@ -132,7 +132,7 @@ function Books() {
   );
 }
 
-function City() {
+export function City() {
   const wins = useRef<THREE.InstancedMesh>(null);
   const { buildings, windows } = useMemo(() => {
     const rnd = makeRng(11);
@@ -292,7 +292,6 @@ export default function Room() {
       <B p={[-3.46, 2.0, 1.1]} s={[0.1, 1.84, 0.07]} c="#0b0d14" />
       <B p={[-3.47, 2.0, 0]} s={[0.05, 1.84, 0.045]} c="#0b0d14" />
       <B p={[-3.47, 2.0, 0]} s={[0.05, 0.045, 2.2]} c="#0b0d14" />
-      <City />
 
       {/* desk corner */}
       <B p={[-1.7, 0.78, -3.0]} s={[2.7, 0.07, 1.0]} c="#0e1017" r={0.028} rough={0.35} />
