@@ -13,8 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Portfolio",
-  description: "Interactive portfolio",
+  title: "CJ Coloma — Creative Developer",
+  description:
+    "Interactive portfolio of a creative developer: fly through the tunnel to explore bio, experience, projects, skills and contact.",
+  openGraph: {
+    title: "CJ Coloma — Creative Developer",
+    description: "An interactive, fly-through portfolio.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
