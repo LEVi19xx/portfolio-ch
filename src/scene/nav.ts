@@ -336,6 +336,9 @@ const hallStrips = [
   // the short hall to the atelier, east of the gallery and theater
   { x0: HM, x1: SPACING - HM, z0: -SPACING - INNER, z1: -HM },
 ];
+// every piece of furniture in the house as a circle (world x, z, radius), for the floor plan
+export const furniture = (): Obstacle[] => allObstacles;
+
 export const walkable = (x: number, z: number) =>
   inRoomBox(x, z) ||
   hallStrips.some((c) => x >= c.x0 && x <= c.x1 && z >= c.z0 && z <= c.z1) ||

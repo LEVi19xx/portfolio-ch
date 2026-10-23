@@ -72,13 +72,13 @@ export default function Chrome({
         {/* rooms */}
         <nav
           aria-label="Rooms"
-          className="pointer-events-auto absolute left-1/2 top-[3.75rem] flex -translate-x-1/2 gap-0.5 rounded-full p-1 backdrop-blur-xl md:top-6"
+          className="pointer-events-auto absolute left-1/2 top-[3.75rem] flex -translate-x-1/2 gap-0.5 rounded-full p-1 backdrop-blur-xl xl:top-6"
           style={{ background: "rgba(10,13,22,0.66)", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.12)" }}
         >
           <button
             aria-label="Previous room"
             onClick={() => onNavigate(ROOMS[(roomIdx + ROOMS.length - 1) % ROOMS.length].sections[0])}
-            className="cursor-pointer rounded-full px-2.5 py-1.5 text-white/60 hover:text-white md:hidden"
+            className="cursor-pointer rounded-full px-2.5 py-1.5 text-white/60 hover:text-white xl:hidden"
           >
             ‹
           </button>
@@ -89,7 +89,7 @@ export default function Chrome({
                 key={r.id}
                 onClick={() => onNavigate(r.sections[0])}
                 aria-current={on}
-                className={`cursor-pointer rounded-full px-2.5 py-1.5 tracking-[0.15em] transition-all duration-300 md:px-2 lg:px-3 xl:px-4 ${on ? "" : "hidden md:block"}`}
+                className={`cursor-pointer rounded-full px-2.5 py-1.5 tracking-[0.15em] transition-all duration-300 xl:px-4 ${on ? "" : "hidden xl:block"}`}
                 style={{
                   background: on ? "rgba(255,255,255,0.14)" : "transparent",
                   color: on ? "#fff" : "rgba(255,255,255,0.5)",
@@ -102,7 +102,7 @@ export default function Chrome({
           <button
             aria-label="Next room"
             onClick={() => onNavigate(ROOMS[(roomIdx + 1) % ROOMS.length].sections[0])}
-            className="cursor-pointer rounded-full px-2.5 py-1.5 text-white/60 hover:text-white md:hidden"
+            className="cursor-pointer rounded-full px-2.5 py-1.5 text-white/60 hover:text-white xl:hidden"
           >
             ›
           </button>

@@ -18,6 +18,7 @@ import {
   WRAPS,
 } from "@/lib/bouquet";
 import { sound } from "@/lib/sound";
+import { dbReady, saveOrder } from "@/lib/supabase";
 import { accent } from "@/lib/ui";
 
 const hair = { borderColor: "hsl(var(--hue, 190) 60% 60% / 0.18)" };
@@ -105,8 +106,27 @@ export default function BouquetPanel() {
   const info = FLOWER_INFO[b.pickType];
   const ready = b.flowers.length > 0 && b.card.to.trim() !== "" && b.delivery.address.trim() !== "";
 
-  const placeOrder = () => {
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // saved to the database when it is set up; otherwise it opens the mail app with the order written out
+  const placeOrder = async () => {
     sound.click();
+    if (dbReady()) {
+      setSaving(true);
+      setErr("");
+      const s = bouquet.get();
+      const r = await saveOrder(bouquet.describe(), { flowers: s.flowers, wrap: s.wrap, ribbon: s.ribbon, container: s.container }, s.card, s.delivery);
+      setSaving(false);
+      if (!r.ok) {
+        setErr(r.error);
+        return;
+      }
+      bouquet.order();
+      setSent(true);
+      setTimeout(() => setSent(false), 5000);
+      return;
+    }
     bouquet.order();
     setSent(true);
     setTimeout(() => setSent(false), 5000);
@@ -377,11 +397,11 @@ export default function BouquetPanel() {
           <div className="mt-4 flex flex-wrap items-center gap-3 pb-2">
             <button
               onClick={placeOrder}
-              disabled={!ready}
+              disabled={!ready || saving}
               className={pill + " disabled:cursor-not-allowed disabled:opacity-40"}
               style={{ color: "#05070d", background: accent(64) }}
             >
-              {sent ? "ORDER SENT ✓" : "PLACE ORDER →"}
+              {saving ? "SENDING..." : sent ? "ORDER SENT ✓" : "PLACE ORDER →"}
             </button>
             <button onClick={copy} className="cursor-pointer text-[11px] tracking-[0.2em]" style={{ color: accent(72) }}>
               {copied ? "COPIED ✓" : "COPY ORDER"}
@@ -389,9 +409,12 @@ export default function BouquetPanel() {
           </div>
           <p className="pb-2 text-[10px] leading-5 tracking-wider text-slate-500">
             {ready
-              ? "Opens your mail app with the whole order written out, and the box in the shop closes."
+              ? dbReady()
+                ? "Sends the whole order to the shop, and the box closes."
+                : "Opens your mail app with the whole order written out, and the box in the shop closes."
               : "Add at least one flower, who the card is for, and an address to place the order."}
           </p>
+          {err && <p className="pb-2 text-[11px] text-rose-300">{err}</p>}
         </>
       )}
     </section>

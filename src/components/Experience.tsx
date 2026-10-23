@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Boot from "./Boot";
 import Chrome from "./Chrome";
-import WalkHud from "./WalkHud";
+import RotateNotice, { goLandscape } from "./RotateNotice";
+import WalkHud, { useCompact } from "./WalkHud";
 import BoothPanel from "./BoothPanel";
 import BouquetPanel from "./BouquetPanel";
 import BuskPanel from "./BuskPanel";
@@ -84,6 +85,7 @@ export default function Experience() {
   const [day, setDay] = useState(false);
   const [musicName, setMusicName] = useState("");
   const [walk, setWalk] = useState(false);
+  const { compact } = useCompact();
   const sectionRef = useRef(0);
 
   // the camera flies to the room and the character walks there, through the doors
@@ -183,6 +185,8 @@ export default function Experience() {
       await sound.enable();
       setSoundOn(sound.isEnabled());
     }
+    // like a game on a phone: go fullscreen and sideways
+    if (window.matchMedia("(pointer: coarse)").matches) void goLandscape();
     // you drive her from the start
     startWalk();
   }, [startWalk]);
@@ -471,6 +475,7 @@ export default function Experience() {
         </p>
       </div>
 
+      {!(walk && compact) && (
       <Chrome
         section={section}
         onNavigate={navigate}
@@ -484,7 +489,9 @@ export default function Experience() {
         walk={walk}
         onToggleWalk={walk ? endWalk : startWalk}
       />
-      {walk && <WalkHud onExit={endWalk} />}
+      )}
+      {walk && <WalkHud onExit={endWalk} day={day} soundOn={soundOn} onToggleDay={toggleDay} onToggleSound={toggleSound} />}
+      <RotateNotice />
       <CommandPalette open={palette} onClose={() => setPalette(false)} commands={commands} />
 
       <Boot onEnter={onEnter} />

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { PROFILE } from "@/content/content";
 import { LETTER_MAX, letter, useLetter } from "@/lib/letter";
 import { sound } from "@/lib/sound";
+import { dbReady, saveLetter } from "@/lib/supabase";
 import { accent } from "@/lib/ui";
 
 const pill = "cursor-pointer px-3 py-2 text-[11px] font-semibold tracking-[0.2em] transition-colors";
@@ -12,8 +13,25 @@ const pill = "cursor-pointer px-3 py-2 text-[11px] font-semibold tracking-[0.2em
 export default function LetterPanel() {
   const l = useLetter();
   const [copied, setCopied] = useState(false);
+  const [state, setState] = useState<"idle" | "saving" | "sent" | "error">("idle");
+  const [error, setError] = useState("");
 
-  const send = () => {
+  // saved to the database when it is set up, so it arrives even on a phone with no mail app
+  const post = async () => {
+    if (!dbReady()) return mail();
+    setState("saving");
+    const r = await saveLetter(l.name, l.text);
+    if (r.ok) {
+      setState("sent");
+      letter.clear();
+      setTimeout(() => setState("idle"), 5000);
+    } else {
+      setError(r.error);
+      setState("error");
+    }
+  };
+
+  const mail = () => {
     const subject = encodeURIComponent("A letter from " + (l.name || "a visitor"));
     const body = encodeURIComponent(l.text + "\n\n— " + (l.name || "a visitor"));
     window.location.href = `mailto:${PROFILE.email}?subject=${subject}&body=${body}`;
@@ -77,14 +95,27 @@ export default function LetterPanel() {
         <button
           onClick={() => {
             sound.click();
-            send();
+            void post();
           }}
-          disabled={!l.text.trim()}
+          disabled={!l.text.trim() || state === "saving"}
           className={pill + " disabled:cursor-not-allowed disabled:opacity-40"}
           style={{ color: "#05070d", background: accent(64) }}
         >
-          SEND BY EMAIL
+          {state === "saving" ? "SENDING..." : state === "sent" ? "SENT ✓" : dbReady() ? "SEND LETTER" : "SEND BY EMAIL"}
         </button>
+        {dbReady() && (
+          <button
+            onClick={() => {
+              sound.click();
+              mail();
+            }}
+            disabled={!l.text.trim()}
+            className={pill + " disabled:cursor-not-allowed disabled:opacity-40"}
+            style={{ color: accent(72), boxShadow: `inset 0 0 0 1px ${accent(55, 0.5)}` }}
+          >
+            EMAIL IT
+          </button>
+        )}
         <button
           onClick={copy}
           disabled={!l.text.trim()}
@@ -104,6 +135,8 @@ export default function LetterPanel() {
           NEW PAPER
         </button>
       </div>
+      {state === "sent" && <p className="mt-3 text-[11px] text-slate-300">Your letter was delivered. Thank you!</p>}
+      {state === "error" && <p className="mt-3 text-[11px] text-rose-300">{error}</p>}
     </section>
   );
 }
